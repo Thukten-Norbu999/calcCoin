@@ -1,0 +1,19 @@
+{
+  "name": "myexchange-calculator",
+  "version": "1.0.0",
+  "description": "Crypto & FX calculator for myExchange (Express + Tailwind UI)",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.22.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

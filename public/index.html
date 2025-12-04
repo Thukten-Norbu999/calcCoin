@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>myExchange · Crypto & FX Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Modern font -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #050816;
+        --bg-card: rgba(15, 23, 42, 0.95);
+        --border-subtle: rgba(148, 163, 184, 0.2);
+        --accent: #22c55e;
+        --accent-soft: rgba(34, 197, 94, 0.12);
+        --accent-alt: #6366f1;
+        --accent-alt-soft: rgba(99, 102, 241, 0.12);
+        --text-main: #e5e7eb;
+        --text-muted: #9ca3af;
+        --danger: #fb7185;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #1e293b 0, #020617 45%, #000 100%);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+      }
+
+      .shell {
+        width: 100%;
+        max-width: 1120px;
+        padding: 24px 16px 32px;
+        margin: auto;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+
+      .brand-title {
+        font-size: 1.6rem;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+      }
+
+      .brand-sub {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .badge {
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(52, 211, 153, 0.4);
+        color: #a7f3d0;
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        background: radial-gradient(circle at top left, #0f172a, #020617);
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      @media (min-width: 768px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .card {
+        background: var(--bg-card);
+        border-radius: 18px;
+        padding: 18px 18px 20px;
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(14px);
+      }
+
+      .card-header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 16px;
+      }
+
+      .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .card-sub {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      label {
+        display: block;
+        font-size: 0.75rem;
+        color: #cbd5f5;
+        margin-bottom: 4px;
+      }
+
+      .field {
+        position: relative;
+      }
+
+      .input,
+      select {
+        width: 100%;
+        padding: 9px 10px;
+        border-radius: 11px;
+        border: 1px solid rgba(51, 65, 85, 0.9);
+        background: rgba(15, 23, 42, 0.9);
+        outline: none;
+        color: var(--text-main);
+        font-size: 0.82rem;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease,
+          background 0.18s ease;
+      }
+
+      .input-prefix {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .input.prefixed {
+        padding-left: 20px;
+      }
+
+      .input:focus,
+      select:focus {
+        border-color: rgba(52, 211, 153, 0.75);
+        box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.3);
+        background: rgba(15, 23, 42, 1);
+      }
+
+      .btn {
+        border: none;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        margin-top: 4px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #22c55e, #4ade80);
+        color: #022c22;
+        box-shadow: 0 12px 25px rgba(16, 185, 129, 0.5);
+      }
+
+      .btn-primary:hover {
+        filter: brightness(1.04);
+        transform: translateY(-0.5px);
+      }
+
+      .btn-secondary {
+        background: linear-gradient(135deg, #6366f1, #a855f7);
+        color: #e0e7ff;
+        box-shadow: 0 12px 25px rgba(79, 70, 229, 0.48);
+      }
+
+      .btn-secondary:hover {
+        filter: brightness(1.05);
+        transform: translateY(-0.5px);
+      }
+
+      .btn-icon {
+        font-size: 1rem;
+        line-height: 1;
+      }
+
+      .error {
+        margin-top: 8px;
+        font-size: 0.75rem;
+        color: var(--danger);
+        display: none;
+      }
+
+      .result {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        font-size: 0.78rem;
+        border: 1px solid var(--border-subtle);
+        background: radial-gradient(circle at top left, #020617, #020617 40%, #030712 100%);
+        display: none;
+      }
+
+      .result-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 4px;
+      }
+
+      .result-label {
+        color: var(--text-muted);
+      }
+
+      .result-value {
+        font-weight: 500;
+        color: #e5e7eb;
+      }
+
+      .result-highlight {
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 0.88rem;
+      }
+
+      .result-divider {
+        margin: 6px 0 4px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.4);
+      }
+
+      footer {
+        margin-top: 22px;
+        font-size: 0.7rem;
+        text-align: center;
+        color: var(--text-muted);
+      }
+
+      code {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+          Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.7rem;
+        padding: 2px 4px;
+        border-radius: 4px;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(51, 65, 85, 0.8);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <div>
+          <div class="brand-title">myExchange Console</div>
+          <div class="brand-sub">
+            Live crypto coin calculator & FX tool for SGD · USD · BTN.
+          </div>
+        </div>
+        <div class="badge">Express · Ready for Render</div>
+      </header>
+
+      <main class="grid">
+        <!-- Crypto calculator -->
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title">Crypto Calculator</div>
+            <div class="card-sub">
+              Min principal: $10 · Platform fee: $0.99 + 9% GST · Commission:
+              3%
+            </div>
+          </div>
+
+          <form id="crypto-form" autocomplete="off">
+            <div>
+              <label for="principal">Principal (before commission)</label>
+              <div class="field">
+                <span class="input-prefix">$</span>
+                <input
+                  id="principal"
+                  name="principal"
+                  type="number"
+                  min="10"
+                  step="0.01"
+                  placeholder="e.g. 50"
+                  class="input prefixed"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="marketValue">Market price per coin</label>
+              <div class="field">
+                <span class="input-prefix">$</span>
+                <input
+                  id="marketValue"
+                  name="marketValue"
+                  type="number"
+                  step="0.0001"
+                  placeholder="e.g. 0.20"
+                  class="input prefixed"
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+              <span class="btn-icon">⚡</span>
+              <span>Calculate coins</span>
+            </button>
+          </form>
+
+          <p id="crypto-error" class="error"></p>
+
+          <div id="crypto-result" class="result">
+            <div class="result-row">
+              <span class="result-label">Coins received</span>
+              <span id="coins" class="result-highlight"></span>
+            </div>
+            <div class="result-row">
+              <span class="result-label">Amount used for crypto</span>
+              <span id="amountForCrypto" class="result-value"></span>
+            </div>
+            <div class="result-row">
+              <span class="result-label">Commission (3%)</span>
+              <span id="commissionAmount" class="result-value"></span>
+            </div>
+            <div class="result-row">
+              <span class="result-label">Platform fee + GST</span>
+              <span id="fixedFee" class="result-value"></span>
+            </div>
+            <div class="result-divider"></div>
+            <div class="result-row">
+              <span class="result-label">Total charged to customer</span>
+              <span id="totalCharged" class="result-value"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- FX converter -->
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title">FX Converter</div>
+            <div class="card-sub">Convert instantly between SGD, USD, BTN.</div>
+          </div>
+
+          <form id="fx-form" autocomplete="off">
+            <div>
+              <label for="fx-amount">Amount</label>
+              <input
+                id="fx-amount"
+                type="number"
+                step="0.01"
+                placeholder="e.g. 100"
+                class="input"
+                required
+              />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+              <div>
+                <label for="fx-from">From</label>
+                <select id="fx-from" class="input">
+                  <option value="SGD">SGD</option>
+                  <option value="USD">USD</option>
+                  <option value="BTN">BTN</option>
+                </select>
+              </div>
+              <div>
+                <label for="fx-to">To</label>
+                <select id="fx-to" class="input">
+                  <option value="USD">USD</option>
+                  <option value="SGD">SGD</option>
+                  <option value="BTN">BTN</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-secondary">
+              <span class="btn-icon">⇄</span>
+              <span>Convert</span>
+            </button>
+          </form>
+
+          <p id="fx-error" class="error"></p>
+
+          <div id="fx-result" class="result">
+            <div class="result-row">
+              <span class="result-label">Converted amount</span>
+              <span id="fx-converted" class="result-highlight"></span>
+            </div>
+            <div class="result-row">
+              <span class="result-label">Rate (from → to)</span>
+              <span id="fx-rate" class="result-value"></span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Demo FX rates are hard-coded in <code>app.js</code>. Replace with live
+        feeds when you plug into your real myExchange backend.
+      </footer>
+    </div>
+
+    <script>
+      // ---- Crypto calculator ----
+      const cryptoForm = document.getElementById("crypto-form");
+      const cryptoError = document.getElementById("crypto-error");
+      const cryptoResult = document.getElementById("crypto-result");
+
+      const coinsEl = document.getElementById("coins");
+      const amountForCryptoEl = document.getElementById("amountForCrypto");
+      const commissionAmountEl = document.getElementById("commissionAmount");
+      const fixedFeeEl = document.getElementById("fixedFee");
+      const totalChargedEl = document.getElementById("totalCharged");
+
+      cryptoForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        cryptoError.style.display = "none";
+        cryptoResult.style.display = "none";
+
+        const principal = document.getElementById("principal").value;
+        const marketValue = document.getElementById("marketValue").value;
+
+        try {
+          const res = await fetch("/api/calc", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ principal, marketValue }),
+          });
+          const data = await res.json();
+
+          if (!data.ok) {
+            cryptoError.textContent = data.message || "Something went wrong.";
+            cryptoError.style.display = "block";
+            return;
+          }
+
+          const d = data.data;
+          coinsEl.textContent = d.coins.toFixed(4);
+          amountForCryptoEl.textContent = `$${d.amountForCrypto.toFixed(2)}`;
+          commissionAmountEl.textContent = `$${d.commissionAmount.toFixed(2)}`;
+          fixedFeeEl.textContent = `$${d.totalFixedFee.toFixed(2)}`;
+          totalChargedEl.textContent = `$${d.totalCharged.toFixed(2)}`;
+
+          cryptoResult.style.display = "block";
+        } catch (err) {
+          cryptoError.textContent = "Network error. Try again.";
+          cryptoError.style.display = "block";
+        }
+      });
+
+      // ---- FX converter ----
+      const fxForm = document.getElementById("fx-form");
+      const fxError = document.getElementById("fx-error");
+      const fxResult = document.getElementById("fx-result");
+      const fxConvertedEl = document.getElementById("fx-converted");
+      const fxRateEl = document.getElementById("fx-rate");
+
+      fxForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        fxError.style.display = "none";
+        fxResult.style.display = "none";
+
+        const amount = document.getElementById("fx-amount").value;
+        const from = document.getElementById("fx-from").value;
+        const to = document.getElementById("fx-to").value;
+
+        try {
+          const res = await fetch("/api/convert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ amount, from, to }),
+          });
+          const data = await res.json();
+
+          if (!data.ok) {
+            fxError.textContent = data.message || "Something went wrong.";
+            fxError.style.display = "block";
+            return;
+          }
+
+          const d = data.data;
+          fxConvertedEl.textContent = `${d.to} ${d.converted.toFixed(2)}`;
+          fxRateEl.textContent = `1 ${d.from} = ${d.rate.toFixed(4)} ${d.to}`;
+
+          fxResult.style.display = "block";
+        } catch (err) {
+          fxError.textContent = "Network error. Try again.";
+          fxError.style.display = "block";
+        }
+      });
+    </script>
+  </body>
+</html>
