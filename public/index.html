@@ -254,6 +254,22 @@
         border-top: 1px dashed rgba(148, 163, 184, 0.4);
       }
 
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+
+      .pill {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: rgba(15, 23, 42, 0.9);
+        color: var(--text-muted);
+      }
+
       footer {
         margin-top: 22px;
         font-size: 0.7rem;
@@ -281,7 +297,7 @@
             Live crypto coin calculator & FX tool for SGD · USD · BTN.
           </div>
         </div>
-        <div class="badge">Express · Ready for Render</div>
+        <div class="badge">Live rates · Express · Render-ready</div>
       </header>
 
       <main class="grid">
@@ -290,14 +306,35 @@
           <div class="card-header">
             <div class="card-title">Crypto Calculator</div>
             <div class="card-sub">
-              Min principal: $10 · Platform fee: $0.99 + 9% GST · Commission:
-              3%
+              Min principal: $10 · Platform fee: $0.99 + 9% GST · Commission: 3%
+            </div>
+            <div class="pill-row" id="coin-pills">
+              <!-- Filled by JS with live prices -->
             </div>
           </div>
 
           <form id="crypto-form" autocomplete="off">
+            <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 10px">
+              <div>
+                <label for="coin-select">Coin</label>
+                <select id="coin-select" class="input">
+                  <option value="usdt">USDT</option>
+                  <option value="eth">ETH</option>
+                  <option value="usdc">USDC</option>
+                  <option value="sol">SOL</option>
+                </select>
+              </div>
+              <div>
+                <label for="fiat-select">Price in</label>
+                <select id="fiat-select" class="input">
+                  <option value="sgd">SGD</option>
+                  <option value="usd">USD</option>
+                </select>
+              </div>
+            </div>
+
             <div>
-              <label for="principal">Principal (before commission)</label>
+              <label for="principal">Principal (in SGD)</label>
               <div class="field">
                 <span class="input-prefix">$</span>
                 <input
@@ -322,11 +359,12 @@
                   name="marketValue"
                   type="number"
                   step="0.0001"
-                  placeholder="e.g. 0.20"
+                  placeholder="Auto from live price or override"
                   class="input prefixed"
                   required
                 />
               </div>
+              <div class="card-sub" id="mv-live-note" style="margin-top: 4px;"></div>
             </div>
 
             <button type="submit" class="btn btn-primary">
@@ -366,7 +404,9 @@
         <section class="card">
           <div class="card-header">
             <div class="card-title">FX Converter</div>
-            <div class="card-sub">Convert instantly between SGD, USD, BTN.</div>
+            <div class="card-sub" id="fx-live-note">
+              Loading live SGD → USD, BTN rates…
+            </div>
           </div>
 
           <form id="fx-form" autocomplete="off">
@@ -423,12 +463,68 @@
       </main>
 
       <footer>
-        Demo FX rates are hard-coded in <code>app.js</code>. Replace with live
-        feeds when you plug into your real myExchange backend.
+        FX powered by <code>exchangerate.host</code>, crypto prices by
+        <code>CoinGecko</code>. Replace with your own backend feeds when you go
+        production.
       </footer>
     </div>
 
     <script>
+      // Store live prices in memory
+      let coinPrices = null;
+
+      async function loadCoinPrices() {
+        try {
+          const res = await fetch("/api/coins/latest");
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.message || "Failed coin prices");
+
+          coinPrices = data.data || {};
+          renderCoinPills();
+          updateMarketValueFromLive();
+        } catch (err) {
+          console.error(err);
+          const note = document.getElementById("mv-live-note");
+          note.textContent = "Live prices unavailable. You can enter MV manually.";
+        }
+      }
+
+      function renderCoinPills() {
+        const pillsContainer = document.getElementById("coin-pills");
+        pillsContainer.innerHTML = "";
+        if (!coinPrices) return;
+
+        for (const [symbol, vs] of Object.entries(coinPrices)) {
+          const pill = document.createElement("div");
+          pill.className = "pill";
+          const s = symbol.toUpperCase();
+          const usd = vs.usd?.toFixed(4);
+          const sgd = vs.sgd?.toFixed(4);
+          pill.textContent = `${s}: US$${usd} · S$${sgd}`;
+          pillsContainer.appendChild(pill);
+        }
+      }
+
+      function updateMarketValueFromLive() {
+        const coinSel = document.getElementById("coin-select");
+        const fiatSel = document.getElementById("fiat-select");
+        const mvInput = document.getElementById("marketValue");
+        const note = document.getElementById("mv-live-note");
+
+        if (!coinPrices) return;
+
+        const coin = coinSel.value;
+        const fiat = fiatSel.value; // "usd" or "sgd"
+        const data = coinPrices[coin];
+
+        if (data && typeof data[fiat] === "number") {
+          mvInput.value = data[fiat];
+          note.textContent = `Live ${coin.toUpperCase()} price in ${fiat.toUpperCase()} · data from CoinGecko`;
+        } else {
+          note.textContent = "Live price not available for this pair, enter MV manually.";
+        }
+      }
+
       // ---- Crypto calculator ----
       const cryptoForm = document.getElementById("crypto-form");
       const cryptoError = document.getElementById("crypto-error");
@@ -476,12 +572,40 @@
         }
       });
 
+      // Update MV when coin/fiat selection changes
+      document.getElementById("coin-select").addEventListener("change", () => {
+        updateMarketValueFromLive();
+      });
+      document.getElementById("fiat-select").addEventListener("change", () => {
+        updateMarketValueFromLive();
+      });
+
       // ---- FX converter ----
       const fxForm = document.getElementById("fx-form");
       const fxError = document.getElementById("fx-error");
       const fxResult = document.getElementById("fx-result");
       const fxConvertedEl = document.getElementById("fx-converted");
       const fxRateEl = document.getElementById("fx-rate");
+      const fxLiveNote = document.getElementById("fx-live-note");
+
+      async function loadFxSnapshot() {
+        try {
+          const res = await fetch("/api/fx/latest");
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.message || "FX error");
+
+          const { base, rates } = data.data;
+          const usd = rates.USD;
+          const btn = rates.BTN;
+
+          fxLiveNote.textContent = `Live: 1 ${base} = ${usd.toFixed(
+            4
+          )} USD · ${btn.toFixed(2)} BTN (via exchangerate.host)`;
+        } catch (err) {
+          console.error(err);
+          fxLiveNote.textContent = "Live FX snapshot unavailable.";
+        }
+      }
 
       fxForm.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -516,6 +640,10 @@
           fxError.style.display = "block";
         }
       });
+
+      // Initial load
+      loadCoinPrices();
+      loadFxSnapshot();
     </script>
   </body>
 </html>
