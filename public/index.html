@@ -297,7 +297,7 @@
             Live crypto coin calculator & FX tool for USD · SGD · BTN.
           </div>
         </div>
-        <div class="badge">Live rates · Express · Render-ready</div>
+        <div class="badge">Live rates · FioogAPI · Render</div>
       </header>
 
       <main class="grid">
@@ -306,7 +306,7 @@
           <div class="card-header">
             <div class="card-title">Crypto Calculator</div>
             <div class="card-sub">
-              Min principal: <strong>US$10</strong> · Platform fee: $0.99 + 9% GST · Commission: 3%
+              Principal in <strong>USD</strong> · Platform fee: $0.99 + 9% GST · Commission: 3%
             </div>
             <div class="pill-row" id="coin-pills">
               <!-- Filled by JS with live prices -->
@@ -327,7 +327,7 @@
               <div>
                 <label for="fiat-select">Price in</label>
                 <select id="fiat-select" class="input">
-                  <option value="usd" selected>USD</option>
+                  <option value="usd">USD</option>
                   <option value="sgd">SGD</option>
                 </select>
               </div>
@@ -405,7 +405,7 @@
           <div class="card-header">
             <div class="card-title">FX Converter</div>
             <div class="card-sub" id="fx-live-note">
-              Loading live SGD → USD, BTN rates…
+              Loading live USD · SGD · BTN matrix from FioogAPI…
             </div>
           </div>
 
@@ -426,16 +426,16 @@
               <div>
                 <label for="fx-from">From</label>
                 <select id="fx-from" class="input">
-                  <option value="SGD">SGD</option>
                   <option value="USD">USD</option>
+                  <option value="SGD">SGD</option>
                   <option value="BTN">BTN</option>
                 </select>
               </div>
               <div>
                 <label for="fx-to">To</label>
                 <select id="fx-to" class="input">
-                  <option value="USD">USD</option>
                   <option value="SGD">SGD</option>
+                  <option value="USD">USD</option>
                   <option value="BTN">BTN</option>
                 </select>
               </div>
@@ -463,28 +463,101 @@
       </main>
 
       <footer>
-        FX powered by <code>myExchange FX API (Google Finance via FioogAPI)</code>,
-        crypto prices by <code>CoinGecko</code>. Backend: Express on Render.
+        Rates powered by <code>FioogAPI</code> (Google Finance scraper).  
+        This UI is static; backend is your Express + FastAPI stack.
       </footer>
     </div>
 
     <script>
-      // Store live prices in memory
-      let coinPrices = null;
+      // =====================
+      // CONFIG: FioogAPI URLs
+      // =====================
+      const FIOOG_BASE = "https://figoogapi.onrender.com";
+      const FIOOG_CRYPTO = `${FIOOG_BASE}/crypto-quotes`;
+      const FIOOG_FX = `${FIOOG_BASE}/fx-matrix`;
 
+      // Store live prices in memory
+      let coinPrices = null; // { usdt: { usd, sgd? }, ... }
+      let usdToSgd = null;
+      let usdToBtn = null;
+
+      // ---------- FX from FioogAPI ----------
+      const fxLiveNote = document.getElementById("fx-live-note");
+
+      async function loadFxSnapshot() {
+        try {
+          const res = await fetch(FIOOG_FX);
+          const data = await res.json();
+          // Expected structure from your FastAPI:
+          // { currencies: [...], pairs: { "USD/SGD": {...}, "USD/BTN": {...}, "BTN/SGD": {...} } }
+          const pairs = data.pairs || data.data?.pairs;
+          if (!pairs || !pairs["USD/SGD"] || !pairs["USD/BTN"]) {
+            throw new Error("FX matrix missing needed pairs");
+          }
+
+          usdToSgd = pairs["USD/SGD"].price; // SGD per 1 USD
+          usdToBtn = pairs["USD/BTN"].price; // BTN per 1 USD
+
+          fxLiveNote.textContent =
+            `Live: 1 USD ≈ ${usdToSgd.toFixed(4)} SGD · ${usdToBtn.toFixed(2)} BTN (via FioogAPI)`;
+        } catch (err) {
+          console.error(err);
+          fxLiveNote.textContent = "Live FX snapshot unavailable (FioogAPI error).";
+        }
+      }
+
+      // Helper: get rate FROM -> TO using usdToSgd & usdToBtn
+      function getFxRate(from, to) {
+        if (from === to) return 1;
+        if (!usdToSgd || !usdToBtn) return null;
+
+        // 1 USD = usdToSgd SGD, usdToBtn BTN
+        if (from === "USD") {
+          if (to === "SGD") return usdToSgd;
+          if (to === "BTN") return usdToBtn;
+        } else if (from === "SGD") {
+          // SGD -> USD -> tgt
+          const sgdToUsd = 1 / usdToSgd;
+          if (to === "USD") return sgdToUsd;
+          if (to === "BTN") return sgdToUsd * usdToBtn;
+        } else if (from === "BTN") {
+          // BTN -> USD -> tgt
+          const btnToUsd = 1 / usdToBtn;
+          if (to === "USD") return btnToUsd;
+          if (to === "SGD") return btnToUsd * usdToSgd;
+        }
+        return null;
+      }
+
+      // ---------- Crypto prices from FioogAPI ----------
       async function loadCoinPrices() {
         try {
-          const res = await fetch("/api/coins/latest");
+          const res = await fetch(FIOOG_CRYPTO);
           const data = await res.json();
-          if (!data.ok) throw new Error(data.message || "Failed coin prices");
+          // Expected:
+          // { symbols: ["USDT","ETH","BTC","SOL"], pairs: { "BTC/USD": { symbol, price, ... }, ... } }
+          const pairs = data.pairs || data.data?.pairs;
+          if (!pairs) throw new Error("No crypto pairs in FioogAPI response");
 
-          coinPrices = data.data || {};
+          coinPrices = {};
+
+          for (const [pairKey, info] of Object.entries(pairs)) {
+            const sym = (info.symbol || pairKey.split("/")[0]).toLowerCase();
+            const usdPrice = info.price;
+            if (typeof usdPrice === "number") {
+              coinPrices[sym] = { usd: usdPrice };
+              if (usdToSgd) {
+                coinPrices[sym].sgd = usdPrice * usdToSgd;
+              }
+            }
+          }
+
           renderCoinPills();
           updateMarketValueFromLive();
         } catch (err) {
           console.error(err);
           const note = document.getElementById("mv-live-note");
-          note.textContent = "Live prices unavailable. You can enter MV manually.";
+          note.textContent = "Live prices unavailable (FioogAPI). Enter MV manually.";
         }
       }
 
@@ -497,8 +570,8 @@
           const pill = document.createElement("div");
           pill.className = "pill";
           const s = symbol.toUpperCase();
-          const usd = vs.usd?.toFixed(4);
-          const sgd = vs.sgd?.toFixed(4);
+          const usd = typeof vs.usd === "number" ? vs.usd.toFixed(4) : "–";
+          const sgd = typeof vs.sgd === "number" ? vs.sgd.toFixed(4) : "–";
           pill.textContent = `${s}: US$${usd} · S$${sgd}`;
           pillsContainer.appendChild(pill);
         }
@@ -510,31 +583,37 @@
         const mvInput = document.getElementById("marketValue");
         const note = document.getElementById("mv-live-note");
 
-        if (!coinPrices) return;
+        if (!coinPrices) {
+          note.textContent = "Live price not loaded yet.";
+          return;
+        }
 
         const coin = coinSel.value; // usdt / eth / usdc / sol
         const fiat = fiatSel.value; // "usd" or "sgd"
         const data = coinPrices[coin];
 
-        if (data && (typeof data.usd === "number" || typeof data.sgd === "number")) {
-          // Pick the price to use for MV based on selected fiat
-          const mvPrice = data[fiat];
-          if (typeof mvPrice === "number") {
-            mvInput.value = mvPrice;
+        if (!data) {
+          note.textContent = "Live price not available for this coin.";
+          return;
+        }
+
+        let price = null;
+        if (fiat === "usd") {
+          price = data.usd;
+        } else if (fiat === "sgd") {
+          // If we don't have sgd precomputed, try to derive from usd * usdToSgd
+          if (typeof data.sgd === "number") {
+            price = data.sgd;
+          } else if (usdToSgd && typeof data.usd === "number") {
+            price = data.usd * usdToSgd;
           }
+        }
 
-          const usdText =
-            typeof data.usd === "number" ? `US$${data.usd.toFixed(4)}` : "N/A";
-          const sgdText =
-            typeof data.sgd === "number" ? `S$${data.sgd.toFixed(4)}` : "N/A";
-
-          note.textContent =
-            `Live ${coin.toUpperCase()} price — 1 ${coin.toUpperCase()} = ` +
-            `${usdText} · ${sgdText} (CoinGecko). ` +
-            `Using ${fiat.toUpperCase()} price for MV.`;
+        if (typeof price === "number") {
+          mvInput.value = price;
+          note.textContent = `Live ${coin.toUpperCase()} price in ${fiat.toUpperCase()} · from FioogAPI (Google Finance → FX)`;
         } else {
-          note.textContent =
-            "Live price not available for this coin, enter MV manually.";
+          note.textContent = "Live price not available for this pair, enter MV manually.";
         }
       }
 
@@ -558,6 +637,7 @@
         const marketValue = document.getElementById("marketValue").value;
 
         try {
+          // Still using your Express backend for the fee logic
           const res = await fetch("/api/calc", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -580,6 +660,7 @@
 
           cryptoResult.style.display = "block";
         } catch (err) {
+          console.error(err);
           cryptoError.textContent = "Network error. Try again.";
           cryptoError.style.display = "block";
         }
@@ -593,70 +674,46 @@
         updateMarketValueFromLive();
       });
 
-      // ---- FX converter ----
+      // ---- FX converter (local calc using FioogAPI matrix) ----
       const fxForm = document.getElementById("fx-form");
       const fxError = document.getElementById("fx-error");
       const fxResult = document.getElementById("fx-result");
       const fxConvertedEl = document.getElementById("fx-converted");
       const fxRateEl = document.getElementById("fx-rate");
-      const fxLiveNote = document.getElementById("fx-live-note");
 
-      async function loadFxSnapshot() {
-        try {
-          const res = await fetch("/api/fx/latest");
-          const data = await res.json();
-          if (!data.ok) throw new Error(data.message || "FX error");
-
-          const { base, rates, source } = data.data;
-          const usd = rates.USD;
-          const btn = rates.BTN;
-
-          fxLiveNote.textContent = `Live: 1 ${base} = ${usd.toFixed(
-            4
-          )} USD · ${btn.toFixed(2)} BTN (${source || "myExchange FX API"})`;
-        } catch (err) {
-          console.error(err);
-          fxLiveNote.textContent = "Live FX snapshot unavailable.";
-        }
-      }
-
-      fxForm.addEventListener("submit", async (e) => {
+      fxForm.addEventListener("submit", (e) => {
         e.preventDefault();
         fxError.style.display = "none";
         fxResult.style.display = "none";
 
-        const amount = document.getElementById("fx-amount").value;
+        const amount = parseFloat(document.getElementById("fx-amount").value);
         const from = document.getElementById("fx-from").value;
         const to = document.getElementById("fx-to").value;
 
-        try {
-          const res = await fetch("/api/convert", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ amount, from, to }),
-          });
-          const data = await res.json();
-
-          if (!data.ok) {
-            fxError.textContent = data.message || "Something went wrong.";
-            fxError.style.display = "block";
-            return;
-          }
-
-          const d = data.data;
-          fxConvertedEl.textContent = `${d.to} ${d.converted.toFixed(2)}`;
-          fxRateEl.textContent = `1 ${d.from} = ${d.rate.toFixed(4)} ${d.to}`;
-
-          fxResult.style.display = "block";
-        } catch (err) {
-          fxError.textContent = "Network error. Try again.";
+        if (!amount || amount <= 0) {
+          fxError.textContent = "Please enter a valid amount.";
           fxError.style.display = "block";
+          return;
         }
+
+        const rate = getFxRate(from, to);
+        if (!rate) {
+          fxError.textContent = "FX rate not available (check FioogAPI).";
+          fxError.style.display = "block";
+          return;
+        }
+
+        const converted = amount * rate;
+        fxConvertedEl.textContent = `${to} ${converted.toFixed(2)}`;
+        fxRateEl.textContent = `1 ${from} = ${rate.toFixed(4)} ${to}`;
+        fxResult.style.display = "block";
       });
 
-      // Initial load
-      loadCoinPrices();
-      loadFxSnapshot();
+      // Initial load – get FX first (for SGD prices), then coins
+      (async function init() {
+        await loadFxSnapshot();
+        await loadCoinPrices();
+      })();
     </script>
   </body>
 </html>
