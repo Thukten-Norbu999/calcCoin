@@ -294,7 +294,7 @@
         <div>
           <div class="brand-title">myExchange Console</div>
           <div class="brand-sub">
-            Live crypto coin calculator & FX tool for SGD · USD · BTN.
+            Live crypto coin calculator & FX tool for USD · SGD · BTN.
           </div>
         </div>
         <div class="badge">Live rates · Express · Render-ready</div>
@@ -306,7 +306,7 @@
           <div class="card-header">
             <div class="card-title">Crypto Calculator</div>
             <div class="card-sub">
-              Min principal: $10 · Platform fee: $0.99 + 9% GST · Commission: 3%
+              Min principal: <strong>US$10</strong> · Platform fee: $0.99 + 9% GST · Commission: 3%
             </div>
             <div class="pill-row" id="coin-pills">
               <!-- Filled by JS with live prices -->
@@ -327,14 +327,14 @@
               <div>
                 <label for="fiat-select">Price in</label>
                 <select id="fiat-select" class="input">
+                  <option value="usd" selected>USD</option>
                   <option value="sgd">SGD</option>
-                  <option value="usd">USD</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label for="principal">Principal (in SGD)</label>
+              <label for="principal">Principal (in USD)</label>
               <div class="field">
                 <span class="input-prefix">$</span>
                 <input
@@ -512,15 +512,29 @@
 
         if (!coinPrices) return;
 
-        const coin = coinSel.value;
+        const coin = coinSel.value; // usdt / eth / usdc / sol
         const fiat = fiatSel.value; // "usd" or "sgd"
         const data = coinPrices[coin];
 
-        if (data && typeof data[fiat] === "number") {
-          mvInput.value = data[fiat];
-          note.textContent = `Live ${coin.toUpperCase()} price in ${fiat.toUpperCase()} · data from CoinGecko`;
+        if (data && (typeof data.usd === "number" || typeof data.sgd === "number")) {
+          // Pick the price to use for MV based on selected fiat
+          const mvPrice = data[fiat];
+          if (typeof mvPrice === "number") {
+            mvInput.value = mvPrice;
+          }
+
+          const usdText =
+            typeof data.usd === "number" ? `US$${data.usd.toFixed(4)}` : "N/A";
+          const sgdText =
+            typeof data.sgd === "number" ? `S$${data.sgd.toFixed(4)}` : "N/A";
+
+          note.textContent =
+            `Live ${coin.toUpperCase()} price — 1 ${coin.toUpperCase()} = ` +
+            `${usdText} · ${sgdText} (CoinGecko). ` +
+            `Using ${fiat.toUpperCase()} price for MV.`;
         } else {
-          note.textContent = "Live price not available for this pair, enter MV manually.";
+          note.textContent =
+            "Live price not available for this coin, enter MV manually.";
         }
       }
 
