@@ -463,9 +463,8 @@
       </main>
 
       <footer>
-        FX powered by <code>exchangerate.host</code>, crypto prices by
-        <code>CoinGecko</code>. Replace with your own backend feeds when you go
-        production.
+        FX powered by <code>myExchange FX API (Google Finance via FioogAPI)</code>,
+        crypto prices by <code>CoinGecko</code>. Backend: Express on Render.
       </footer>
     </div>
 
@@ -594,13 +593,13 @@
           const data = await res.json();
           if (!data.ok) throw new Error(data.message || "FX error");
 
-          const { base, rates } = data.data;
+          const { base, rates, source } = data.data;
           const usd = rates.USD;
           const btn = rates.BTN;
 
           fxLiveNote.textContent = `Live: 1 ${base} = ${usd.toFixed(
             4
-          )} USD · ${btn.toFixed(2)} BTN (via exchangerate.host)`;
+          )} USD · ${btn.toFixed(2)} BTN (${source || "myExchange FX API"})`;
         } catch (err) {
           console.error(err);
           fxLiveNote.textContent = "Live FX snapshot unavailable.";
