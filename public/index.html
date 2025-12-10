@@ -486,7 +486,7 @@
 
       async function loadFxSnapshot() {
         try {
-          const res = await fetch(FIOOG_FX);
+          const res = await fetch(`{FIOOG_BASE}/snapshot`);
           const data = await res.json();
           // Expected structure:
           // { currencies: [...], pairs: { "USD/SGD": {...}, "USD/BTN": {...}, "BTN/SGD": {...} } }
