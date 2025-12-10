@@ -491,7 +491,7 @@
           const data = await res.json();
           // Expected structure:
           // { currencies: [...], pairs: { "USD/SGD": {...}, "USD/BTN": {...}, "BTN/SGD": {...} } }
-          const pairs = data.pairs || data.data?.pairs;
+          const pairs = data.pairs || data.data?.pairs || data.data.data?.pairs;
           if (!pairs || !pairs["USD/SGD"] || !pairs["USD/BTN"]) {
             throw new Error("FX matrix missing needed pairs");
           }
