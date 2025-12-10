@@ -475,6 +475,7 @@
       const FIOOG_BASE = "https://figoogapi.onrender.com";
       const FIOOG_CRYPTO = `${FIOOG_BASE}/crypto`;
       const FIOOG_FX = `${FIOOG_BASE}/fx`;
+      const FIOOG_SPT = `${FIOOG_BASE}/snapshot`
 
       // Store live prices in memory
       let coinPrices = null; // { usdt: { usd, sgd }, ... }
@@ -486,7 +487,7 @@
 
       async function loadFxSnapshot() {
         try {
-          const res = await fetch(`{FIOOG_BASE}/snapshot`);
+          const res = await fetch(FIOOG_SPT);
           const data = await res.json();
           // Expected structure:
           // { currencies: [...], pairs: { "USD/SGD": {...}, "USD/BTN": {...}, "BTN/SGD": {...} } }
